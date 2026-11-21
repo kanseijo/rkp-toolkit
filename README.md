@@ -682,21 +682,80 @@ fabricate one, and it does not bypass Google's device authenticity checks.
 
 ---
 
-## 已知限制 / Known Limitations
+---
 
-- **厂商实现差异**：AOSP 的 Rust 参考实现中，v1/v2 的 `generate_cert_req()` 只是
-  个 `Unimplemented` 占位，真实实现全部由 SoC 厂商自写。不同设备的实际行为
-  可能有出入。
-  / **Vendor variation**: in AOSP's Rust reference implementation, v1/v2's
-  `generate_cert_req()` is only an `Unimplemented` placeholder; the real
-  implementations are all written by SoC vendors, so behaviour can differ.
-- **EEK 曲线**：优先采用设备上报的 `supportedEekCurve`。如果厂商上报有误，
-  需要在 `rkp_toolkit.py` 中强制指定曲线。
-  / **EEK curve**: the reported `supportedEekCurve` is preferred. If a vendor
-  reports it incorrectly, force the curve in `rkp_toolkit.py`.
-- **需要真实设备**：CSR 必须由设备 TEE 签发，不能在服务器上模拟。
-  / **A real device is required**: the CSR must be signed by the device TEE and
-  cannot be simulated on a server.
+## ⚠️ 重要声明 / Important Notice
+
+### 烧录过 TEE 的设备很可能失败 / TEE reflashing often breaks RKP
+
+**如果设备烧录过 TEE（或 vendor 分区被单独刷过、刷过跨版本固件、
+使用过移植 ROM），RKP 签发很可能失败，且无法通过软件手段修复。**
+
+**If the device's TEE has been reflashed — or the vendor partition was flashed
+separately, cross-version firmware was installed, or a ported ROM is in use —
+RKP provisioning will very likely fail, and no software workaround exists.**
+
+原因 / Why:
+
+RKP 的 CSR 必须在 TEE 内部生成，其中包含一条 **DICE 证书链**，用来证明设备
+固件各启动阶段的完整性。vendor 或 TEE 被改动后，链对不上，厂商 HAL 就会
+直接拒绝，返回类似 `Failure in CSR Generation (code 17)` 的私有错误码。
+
+The RKP CSR must be produced inside the TEE and embeds a **DICE certificate
+chain** attesting the integrity of each boot stage. After the vendor partition
+or TEE is modified, the chain no longer matches and the vendor HAL refuses,
+returning a private error such as `Failure in CSR Generation (code 17)`.
+
+这类失败的特征 / Symptoms of this failure mode:
+
+- `generateCertificateRequestV2 is unimplemented`（固件停留在旧版）
+- 两种 EEK 曲线返回**完全相同的**厂商私有错误码
+- 即使 `verifiedbootstate=green`、`flash.locked=1` 仍然失败
+- `ro.build.version.release` 与 `ro.vendor.build.version.release` **不一致**
+
+- `generateCertificateRequestV2 is unimplemented` (firmware stuck on an older HAL)
+- both EEK curves return the **identical** vendor-private error code
+- fails even with `verifiedbootstate=green` and `flash.locked=1`
+- `ro.build.version.release` and `ro.vendor.build.version.release` **disagree**
+
+**这不是本工具的缺陷。** 只要有一台未改动的设备能成功，就说明工具链本身是
+正常的——问题在设备固件。
+
+**This is not a defect in this tool.** If any unmodified device succeeds, the
+toolchain itself is fine; the problem lies in the device firmware.
+
+检查自己的设备 / Check your own device:
+
+```bash
+su -c "getprop ro.build.version.release"          # 系统 / system
+su -c "getprop ro.vendor.build.version.release"   # 厂商 / vendor
+su -c "getprop ro.boot.verifiedbootstate"
+su -c "getprop ro.boot.flash.locked"
+```
+
+两行版本号不一致 → 大概率失败，别浪费时间。
+If the two version lines disagree, it will most likely fail — don't waste time.
+
+### 无 RKP HAL 的设备 / Devices without an RKP HAL
+
+Android 13 及更早的机型可能完全没有 `IRemotelyProvisionedComponent` HAL
+（Android 13 CDD 未强制要求）。自检会报 `找不到 RKP 后端`。
+
+Devices on Android 13 and older may have no `IRemotelyProvisionedComponent` HAL
+at all (the Android 13 CDD does not require one). The self-check reports
+`找不到 RKP 后端 / no RKP backend found`.
+
+### 能力边界 / What this tool does not do
+
+- **不伪造证书**：CSR 由设备自己的 TEE 签名，工具只负责转发与打包。
+  **Does not fabricate certificates**: the CSR is signed by the device's own
+  TEE; the tool only forwards and packages.
+- **不绕过校验**：Google 服务器对设备真实性的检查照常进行。
+  **Does not bypass validation**: Google's server-side device checks still apply.
+- **不能修复固件问题**：见上文。
+  **Cannot fix firmware problems**: see above.
+
+---
 
 ---
 
@@ -728,47 +787,44 @@ is in `src/` and `build.sh` reproduces it.
 
 ---
 
+---
+
 ## 支持情况 / Support Status
 
 按实测结果记录，不是承诺。/ Recorded from actual testing, not a promise.
 
 | 设备 / Device | 系统 / OS | 结果 / Result |
 |---|---|---|
-| OnePlus PLQ110 | Android 16 | ✅ 成功 / works |
-| ROG Phone 9 Pro | Android 15 | ✅ 成功 / works |
-| OnePlus Ace 3 (PJE110) | A15 系统 + A13 vendor | ❌ HAL 未实现 v2 / no v3 method |
-| 某 Android 13 设备 | Android 13 | ❌ 无 RKP HAL / no RKP HAL |
+| OnePlus Ace 6 / 一加 Ace 6 (PLQ110) | Android 16 | ✅ 成功 / works |
+| ASUS ROG Phone 9 Pro / 玩家国度 9 Pro | Android 15 | ✅ 成功 / works |
+| Redmi Note 11 / 红米 Note 11 (spes, global) | Android 13 | ❌ 无 RKP HAL / no RKP HAL |
+| OnePlus Ace 3 / 一加 Ace 3 (PJE110) | A15 系统 + A13 vendor | ❌ HAL 未实现 v2 / no v3 method |
 
-### 失败的两个典型原因 / Two typical failure causes
-
-1. **设备没有 RKP HAL**（多见于 Android 13 及更早）
-   自检会报 `找不到 RKP 后端`，并打印实际探测结果。
-   The device has no RKP HAL (common on Android 13 and older).
-
-2. **固件版本错配**（系统与 vendor 不同版本）
-   表现为 `generateCertificateRequestV2 is unimplemented`，且两种 EEK
-   曲线都返回同一个厂商私有错误码。这种无法用软件修复，只能刷回匹配固件。
-   Mismatched firmware (system and vendor at different versions). This cannot
-   be fixed in software; only a matching reflash helps.
+---
 
 ---
 
 ## 已知限制 / Known Limitations
 
+- **厂商实现差异**：AOSP 的 Rust 参考实现中，v1/v2 的 `generate_cert_req()` 只是
+  个 `Unimplemented` 占位，真实实现全部由 SoC 厂商自写。不同设备的实际行为
+  可能有出入。
+  / **Vendor variation**: in AOSP's Rust reference implementation, v1/v2's
+  `generate_cert_req()` is only an `Unimplemented` placeholder; the real
+  implementations are all written by SoC vendors, so behaviour can differ.
+- **EEK 曲线**：优先采用设备上报的 `supportedEekCurve`。如果厂商上报有误，
+  需要在 `rkp_toolkit.py` 中强制指定曲线。
+  / **EEK curve**: the reported `supportedEekCurve` is preferred. If a vendor
+  reports it incorrectly, force the curve in `rkp_toolkit.py`.
+- **需要真实设备**：CSR 必须由设备 TEE 签发，不能在服务器上模拟。
+  / **A real device is required**: the CSR must be signed by the device TEE and
+  cannot be simulated on a server.
 - **证书有效期短**：签出的证书通常只有 2 周左右，到期需重新签发。
-  Issued certificates are short-lived (about two weeks).
+  / **Short-lived certificates**: issued certificates last about two weeks and
+  must be re-issued after that.
 - **需要 root**：调用 RKP HAL 需要 root。
-  Root is required to reach the RKP HAL.
-- **不绕过设备安全机制**：证书由设备自己的 TEE 通过 Google 服务器签发。
-  Does not bypass device security; certificates come from the device's own TEE
-  via Google's servers.
-- **硬编码的 MAC 密钥**：`MacedPublicKey` 用的是公开的测试密钥，这是
-  能在不持有设备密钥的前提下构造 CSR 的前提。
-  The `MacedPublicKey` uses the public test MAC key, which is what makes it
-  possible to build a CSR without holding the device key.
-
----
-
-## 许可证 / License
-
-[MIT](LICENSE)
+  / **Root required**: reaching the RKP HAL requires root.
+- **硬编码的 MAC 密钥**：`MacedPublicKey` 用的是公开的测试密钥，这是能在
+  不持有设备密钥的前提下构造 CSR 的前提。
+  / **Hard-coded MAC key**: `MacedPublicKey` uses the public test MAC key, which
+  is what allows building a CSR without holding the device key.

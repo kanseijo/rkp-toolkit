@@ -542,6 +542,11 @@ def stage_check():
         apk = find_rkp_apk()
         if apk:
             say(f"RKP APK: {apk}", "ok")
+            # 提前检查固件版本是否错配：错配时 RKP 几乎必然失败，
+            # 与其查半天不如现在就提醒。
+            # Check firmware version mismatch up front: when they disagree RKP
+            # almost always fails, so warn now instead of after a long hunt.
+            _warn_firmware_mismatch()
         else:
             svc = find_rkp_a13_service()
             if svc:
@@ -906,6 +911,29 @@ def _dump_debug(workdir):
         return path
     except Exception:
         return None
+
+
+def _warn_firmware_mismatch():
+    """系统版本与厂商固件版本不一致时给出警告。
+    Warn when the system and vendor firmware versions disagree.
+    """
+    try:
+        sysrel = run_root("getprop ro.build.version.release 2>/dev/null", timeout=15).strip()
+        venrel = run_root(
+            "getprop ro.vendor.build.version.release 2>/dev/null", timeout=15).strip()
+    except Exception:
+        return
+
+    if not sysrel or not venrel or sysrel == venrel:
+        return
+
+    say(f"警告：固件版本不一致 / firmware version mismatch "
+        f"(system {sysrel} vs vendor {venrel})", "warn")
+    print("    系统与厂商固件不一致，RKP 很可能失败 / "
+          "mismatched system and vendor firmware may break RKP")
+    print("    常见于刷机、跨版本固件、移植 ROM / typically after reflashing, "
+          "cross-version firmware or ported ROMs")
+    print("    详见 / see: README「重要声明」/ Important Notice")
 
 
 def collect_tee_state():
