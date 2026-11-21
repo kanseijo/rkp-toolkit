@@ -7,6 +7,43 @@ packages them into a `keybox.xml` usable by TEESimulator.
 
 ---
 
+## 目录 / Contents
+
+| 章节 / Section | 说明 / What it covers |
+|---|---|
+| [支持情况](#支持情况--support-status) | **先看这个**：哪些设备实测可用 / **start here**: tested devices |
+| [前置要求](#前置要求--requirements) | Termux 版本、root、网络 / Termux version, root, network |
+| [快速开始](#快速开始--quick-start) | 三条命令跑起来 / three commands to get going |
+| [环境自动配置](#环境自动配置--automatic-setup) | 换源测速与依赖安装 / mirrors and dependencies |
+| [命令](#命令--commands) | 各子命令的作用 / what each subcommand does |
+| [自测](#自测--self-test) | 不连设备的本地验证 / offline verification |
+| [产物位置](#产物位置--output-location) | keybox.xml 落在哪 / where the keybox lands |
+| [排查](#排查--troubleshooting) | 常见错误对照表 / common errors |
+| [重要声明](#重要声明--important-notice) | **烧录过 TEE 很可能失败** / **TEE reflashing breaks RKP** |
+| [已知限制](#已知限制--known-limitations) | 能力边界 / scope and limits |
+| [许可证与来源](#许可证与来源--license-and-provenance) | MIT + AOSP 归属 / MIT + AOSP attribution |
+
+技术细节 / Technical details:
+
+- [流程](#流程--protocol-flow) · [Android 版本差异](#android-版本差异--android-version-differences) · [keybox.xml 两个硬性要求](#keyboxxml-的两个硬性要求--two-hard-requirements)
+- [证书有效期](#证书有效期--certificate-lifetime) · [版本号探测](#版本号探测--version-probing) · [项目结构](#项目结构--repository-layout)
+
+---
+
+## 支持情况 / Support Status
+
+按实测结果记录，不是承诺。/ Recorded from actual testing, not a promise.
+
+| 设备 / Device | 系统 / OS | 结果 / Result |
+|---|---|---|
+| OnePlus Ace 6 / 一加 Ace 6 (PLQ110) | Android 16 | ✅ 成功 / works |
+| ASUS ROG Phone 9 Pro / 玩家国度 9 Pro | Android 15 | ✅ 成功 / works |
+| Redmi Note 11 / 红米 Note 11 (spes, global) | Android 13 | ❌ 无 RKP HAL / no RKP HAL |
+| OnePlus Ace 3 / 一加 Ace 3 (PJE110) | A15 系统 + A13 vendor | ❌ HAL 未实现 v2 / no v3 method |
+
+---
+---
+
 ## 前置要求 / Requirements
 
 ### Termux v0.118.3 或更高 / Termux v0.118.3 or newer
@@ -682,9 +719,7 @@ fabricate one, and it does not bypass Google's device authenticity checks.
 
 ---
 
----
-
-## ⚠️ 重要声明 / Important Notice
+## 重要声明 / Important Notice
 
 ### 烧录过 TEE 的设备很可能失败 / TEE reflashing often breaks RKP
 
@@ -757,8 +792,6 @@ at all (the Android 13 CDD does not require one). The self-check reports
 
 ---
 
----
-
 ## 项目结构 / Repository Layout
 
 ```
@@ -784,23 +817,6 @@ at all (the Android 13 CDD does not require one). The self-check reports
 
 `rkp_bridge.jar` is committed so Termux users need no build step. The source
 is in `src/` and `build.sh` reproduces it.
-
----
-
----
-
-## 支持情况 / Support Status
-
-按实测结果记录，不是承诺。/ Recorded from actual testing, not a promise.
-
-| 设备 / Device | 系统 / OS | 结果 / Result |
-|---|---|---|
-| OnePlus Ace 6 / 一加 Ace 6 (PLQ110) | Android 16 | ✅ 成功 / works |
-| ASUS ROG Phone 9 Pro / 玩家国度 9 Pro | Android 15 | ✅ 成功 / works |
-| Redmi Note 11 / 红米 Note 11 (spes, global) | Android 13 | ❌ 无 RKP HAL / no RKP HAL |
-| OnePlus Ace 3 / 一加 Ace 3 (PJE110) | A15 系统 + A13 vendor | ❌ HAL 未实现 v2 / no v3 method |
-
----
 
 ---
 
