@@ -1,0 +1,59 @@
+rkp-toolkit
+Copyright (c) 2026 rkp-toolkit contributors
+
+===============================================================================
+本产品包含衍生自 Android Open Source Project 的实现，依据 Apache License 2.0
+授权。
+This product includes implementations derived from the Android Open Source
+Project, licensed under the Apache License, Version 2.0.
+===============================================================================
+
+衍生自 AOSP 的部分 / Portions derived from AOSP
+-------------------------------------------------------------------------------
+
+1. rkp_csr.py
+
+   本文件是 AOSP `system/security/provisioner/rkp_factory_extraction_tool.cpp`
+   中 `composeCertificateRequest()`（android13-release，第 96-115 行）的
+   Python 翻译与实现。
+
+   This file is a Python translation and implementation of
+   `composeCertificateRequest()` in AOSP
+   `system/security/provisioner/rkp_factory_extraction_tool.cpp`
+   (android13-release, lines 96-115).
+
+2. CSR / COSE / CBOR 结构定义 / structure definitions
+
+   证书请求、COSE_Mac0、COSE_Sign1、DeviceInfo、ProtectedData、MacedPublicKey
+   等结构定义参考 AOSP `hardware/interfaces` 中的
+   `IRemotelyProvisionedComponent.aidl` 与相关 CDDL。
+
+   The structures for certificate requests, COSE_Mac0, COSE_Sign1, DeviceInfo,
+   ProtectedData and MacedPublicKey follow `IRemotelyProvisionedComponent.aidl`
+   and the related CDDL in AOSP `hardware/interfaces`.
+
+AOSP 源码 / AOSP source: https://android.googlesource.com/
+Apache License 2.0 全文 / full text: LICENSES/Apache-2.0.txt
+
+这些 AOSP 部分依据 Apache License 2.0 提供，不附带任何明示或默示的担保，
+包括但不限于适销性、特定用途适用性或不侵权的担保。
+These AOSP portions are provided under the Apache License 2.0, without any
+express or implied warranties, including but not limited to the warranties of
+merchantability, fitness for a particular purpose, or non-infringement.
+
+===============================================================================
+其他参考 / Other references
+===============================================================================
+
+以下项目仅作为协议行为的参考，本项目未复制其代码。
+The following projects served only as references for protocol behaviour; no
+code from them is copied into this project.
+
+- Duck-ToolBox `crates/duck-rkp`（MIT）
+  https://github.com/eltavine/Duck-ToolBox
+- Google RKP 服务端行为（黑盒观察 / black-box observation）
+  https://remoteprovisioning.googleapis.com
+
+本项目的其余部分由 rkp-toolkit contributors 独立实现，采用 MIT 许可证。
+See LICENSE. The remainder of this project is an independent implementation by
+the rkp-toolkit contributors and is licensed under the MIT License.

@@ -629,30 +629,56 @@ It prints `versionNumber` and `supportedEekCurve`.
 
 ---
 
-## 许可证说明 / License Notes
+## 许可证与来源 / License and Provenance
 
-本工具链的协议实现参考了公开资料 / The protocol implementation draws on public
-material:
+本项目采用 **MIT**（见 [LICENSE](LICENSE)）。
 
-- AOSP `IRemotelyProvisionedComponent` AIDL 定义 / definition（Apache-2.0）
+This project is under **MIT** (see [LICENSE](LICENSE)).
+
+其中 `rkp_csr.py` 衍生自 AOSP 的 Apache-2.0 代码，相关归属声明在
+[NOTICE](NOTICE)，Apache-2.0 全文在
+[LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)。
+
+`rkp_csr.py` is derived from Apache-2.0 licensed AOSP code. The attribution is
+in [NOTICE](NOTICE) and the full license text in
+[LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt).
+
+### 各文件来源 / Per-file provenance
+
+| 文件 / File | 来源 / Origin | 许可 / License |
+|---|---|---|
+| `rkp_csr.py` | AOSP `rkp_factory_extraction_tool.cpp:96-115` 的 Python 翻译 / translation | Apache-2.0 |
+| `rkp_toolkit.py` | 独立实现，协议参考 AOSP AIDL / independent, protocol per AOSP AIDL | MIT |
+| `src/RkpBridge.java` | 独立实现 / independent | MIT |
+| `src/RkpProbe.java` | 独立实现 / independent | MIT |
+| `issue.sh` `setup.sh` `build.sh` | 独立实现 / independent | MIT |
+
+### 参考但未复制代码 / Referenced but not copied
+
 - [Duck-ToolBox](https://github.com/eltavine/Duck-ToolBox) `crates/duck-rkp`（MIT）
-- Google RKP 服务端行为（黑盒观察）/ backend behaviour (black-box observation)
+- Google RKP 服务端行为，黑盒观察 / backend behaviour, black-box observation
 
-未使用 OhMyKeymint 的代码。OhMyKeymint 采用 GLA v4（仅限非商业，含 copyleft），
-而 Duck-ToolBox 的 RKP 部分是 MIT，可自由使用（含商业用途）。
+**未使用 OhMyKeymint 的代码。** OhMyKeymint 采用 GLA v4（仅限非商业，含
+copyleft），与本项目的 MIT 不兼容。
 
-No OhMyKeymint code is used. OhMyKeymint is under GLA v4 (non-commercial only,
-with copyleft), whereas Duck-ToolBox's RKP part is MIT and freely usable,
-including commercially.
+**No OhMyKeymint code is used.** OhMyKeymint is under GLA v4 (non-commercial
+only, with copyleft), which is incompatible with this project's MIT.
 
-如果你要在此基础上二次开发并开源，建议同样采用 MIT。
-If you build on this and open-source it, MIT is recommended.
+### 为什么不用 GLA v4 / Why not GLA v4
 
-注意：本工具依赖设备自身的 KeyMint TEE 签发 CSR，不能凭空伪造，
-也不绕过 Google 服务器对设备真实性的校验。
+GLA v4 含 copyleft 且禁止商业使用。如果你的项目也要开源，建议采用 MIT
+或 Apache-2.0 这类宽松许可。
 
-Note: this tool depends on the device's own KeyMint TEE to sign the CSR. It
-cannot fabricate one, and it does not bypass Google's device authenticity checks.
+GLA v4 carries copyleft and forbids commercial use. If you open-source your own
+work, a permissive license such as MIT or Apache-2.0 is recommended.
+
+### 没有伪造能力 / No Fabrication
+
+本工具依赖设备自身的 KeyMint TEE 签发 CSR，不能凭空伪造，也不绕过 Google
+服务器对设备真实性的校验。
+
+This tool depends on the device's own KeyMint TEE to sign the CSR. It cannot
+fabricate one, and it does not bypass Google's device authenticity checks.
 
 ---
 

@@ -19,3 +19,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---------------------------------------------------------------------------
+说明 / Note:
+
+本项目整体采用上述 MIT 许可证。其中 rkp_csr.py 衍生自 Android Open Source
+Project 的 Apache-2.0 代码，该文件的归属声明见 NOTICE，Apache-2.0 全文见
+LICENSES/Apache-2.0.txt。
+
+The project as a whole is under the MIT license above. rkp_csr.py is derived
+from Apache-2.0 licensed Android Open Source Project code; see NOTICE for the
+attribution and LICENSES/Apache-2.0.txt for the full license text.
