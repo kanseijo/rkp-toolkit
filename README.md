@@ -13,7 +13,8 @@ packages them into a `keybox.xml` usable by TEESimulator.
 |---|---|
 | [支持情况](#支持情况--support-status) | **先看这个**：哪些设备实测可用 / **start here**: tested devices |
 | [前置要求](#前置要求--requirements) | Termux 版本、root、网络 / Termux version, root, network |
-| [快速开始](#快速开始--quick-start) | 三条命令跑起来 / three commands to get going |
+| [快速开始](#快速开始--quick-start) | 下载 Release 即可用 / just download a Release |
+| [从源码构建](#从源码构建--build-from-source) | 改代码或自行审计 / modify or audit |
 | [环境自动配置](#环境自动配置--automatic-setup) | 换源测速与依赖安装 / mirrors and dependencies |
 | [命令](#命令--commands) | 各子命令的作用 / what each subcommand does |
 | [自测](#自测--self-test) | 不连设备的本地验证 / offline verification |
@@ -98,25 +99,158 @@ echo $TERMUX_VERSION
 
 ## 快速开始 / Quick Start
 
-设备上（Termux + root）/ On the device (Termux + root):
+在设备上操作（Termux + root）/ Do this on the device (Termux + root).
+
+### 1. 下载 / Download
+
+从 [Releases](https://github.com/kanseijo/rkp-toolkit/releases/latest) 下载
+最新的 `rkp-toolkit.zip`；也可以在 Termux 里一条命令搞定。
+
+Download the latest `rkp-toolkit.zip` from
+[Releases](https://github.com/kanseijo/rkp-toolkit/releases/latest), or use a
+single command in Termux:
 
 ```bash
-git clone <本仓库地址> ~/rkp-toolkit
-cd ~/rkp-toolkit
-sh issue.sh
+pkg install -y unzip curl
+curl -LO https://github.com/kanseijo/rkp-toolkit/releases/latest/download/rkp-toolkit.zip
 ```
 
-> ⚠️ **产物 `keybox.xml` 含设备私钥，切勿提交或公开分享。**
+> 这个链接始终指向最新版，文件名不变。
+> This link always points at the newest release; the filename never changes.
+
+想固定版本 / To pin a specific version:
+
+```bash
+curl -LO https://github.com/kanseijo/rkp-toolkit/releases/download/v1.0.0/rkp-toolkit-v1.0.0.zip
+```
+
+### 2. 解压 / Unpack
+
+```bash
+unzip rkp-toolkit.zip
+cd rkp-toolkit
+```
+
+### 校验（可选）/ Verify (optional)
+
+```bash
+curl -LO https://github.com/kanseijo/rkp-toolkit/releases/latest/download/SHA256SUMS
+sha256sum -c SHA256SUMS
+```
+
+### 3. 运行 / Run
+
+```bash
+./issue.sh
+```
+
+首次运行会自动检测依赖，缺失时调用 `setup.sh` 完成换源与安装。
+On first run it checks dependencies and calls `setup.sh` to switch mirrors and
+install anything missing.
+
+### 4. 取产物 / Collect the output
+
+成功后产物在归档目录里 / the result lands in a dated batch directory:
+
+```
+~/rkp_out/2026-11-21_0001/keybox.xml
+```
+
+每次运行（成功或失败）都会归档，编号按当天递增。
+Every run — successful or not — is archived, numbered per day.
+
+> ⚠️ **`keybox.xml` 含设备私钥，切勿提交或公开分享。**
 > 详见 [SECURITY.md](SECURITY.md)
 >
 > **The generated `keybox.xml` holds a device private key. Never commit or
 > share it.** See [SECURITY.md](SECURITY.md)
 
-产出 `~/rkp_out/keybox.xml` / Produces `~/rkp_out/keybox.xml`.
+### 从源码运行 / Running from source
 
-`issue.sh` 会自动检测依赖，缺失时调用 `setup.sh` 完成配置。
-`issue.sh` checks dependencies first and runs `setup.sh` automatically if
-anything is missing.
+需要 git 和 Java 构建环境时见 [从源码构建](#从源码构建--build-from-source)。
+See [Build from source](#从源码构建--build-from-source) if you want to work from
+the repository or rebuild the jar.
+
+---
+
+## 从源码构建 / Build from Source
+
+只有改代码或想自行审计二进制时才需要这一节。普通用户直接用 Release 里的包，
+里面已含编译好的 `rkp_bridge.jar`。
+
+You only need this section to modify the code or audit the binary yourself.
+Regular users should use the Release archive, which already contains a
+prebuilt `rkp_bridge.jar`.
+
+### 克隆 / Clone
+
+```bash
+git clone https://github.com/kanseijo/rkp-toolkit.git
+cd rkp-toolkit
+```
+
+### Python 部分 / The Python part
+
+无需构建，直接运行 / nothing to build, run it directly:
+
+```bash
+python3 rkp_csr.py          # 核心自测 / core self-test
+./issue.sh
+```
+
+### Java 部分 / The Java part
+
+`src/RkpBridge.java` 通过反射调用 RKP HAL，需要编译成 dex 再打包进 jar。
+`src/RkpBridge.java` calls the RKP HAL reflectively and must be compiled to dex
+and packed into a jar.
+
+**需要 / Requires:**
+
+| 依赖 / Dependency | 用途 / Purpose |
+|---|---|
+| JDK 8+ | `javac` 编译 `.java` |
+| `android.jar`（或等价 stub） | 编译期 Android API |
+| D8（`r8.jar` 中的 `com.android.tools.r8.D8`） | class → dex |
+| Python 3 | 把 `classes.dex` 写入 jar |
+
+**构建 / Build:**
+
+```bash
+sh build.sh <android.jar> [r8.jar]
+```
+
+生成 / produces `rkp_bridge.jar`（约 9.6 KB），覆盖仓库里的旧文件。
+overwriting the committed copy.
+
+**获取依赖 / Where to get them:**
+
+- `android.jar`：Android SDK `platforms/android-35/android.jar`，或 AOSP 构建产物
+- `r8.jar`：Android SDK `build-tools/*/lib/r8.jar`，或
+  [r8 发布页](https://r8.googlesource.com/r8)
+
+- `android.jar`: Android SDK `platforms/android-35/android.jar`, or an AOSP build
+- `r8.jar`: Android SDK `build-tools/*/lib/r8.jar`, or the
+  [r8 releases](https://r8.googlesource.com/r8)
+
+### 验证二进制与源码一致 / Verify the binary matches the source
+
+```bash
+# 重新构建后应当与仓库中的文件功能等价
+sh build.sh <android.jar> r8.jar
+python3 -c "
+import zipfile
+d = zipfile.ZipFile('rkp_bridge.jar').read('classes.dex')
+for k in [b'generateCertificateRequestV2', b'RKP_CALLER_UID', b'strongbox']:
+    print(k.decode(), 'OK' if k in d else 'MISSING')
+"
+```
+
+> 用相同版本的 JDK 与 D8 构建时，`classes.dex` 是**字节级可复现**的（已实测）。
+> jar 外层只是 zip 容器，压缩时间戳会让文件哈希不同，但 dex 内容一致。
+>
+> Built with the same JDK and D8 versions, `classes.dex` is **byte-for-byte
+> reproducible** (verified). The jar's zip container adds timestamps that change
+> the file hash, but the dex content is identical.
 
 ---
 
