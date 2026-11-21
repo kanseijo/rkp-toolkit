@@ -14,8 +14,9 @@ real_keybox.xml
 *.pem
 *.p12
 *.pfx
-key.der
-*.der.online
+*.der
+*.bin
+*.online
 
 # RKP 工作目录与中间产物 / RKP work directory and intermediates
 rkp_out/
