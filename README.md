@@ -87,11 +87,66 @@ echo $TERMUX_VERSION
 | rooted device | root is required to reach the RKP HAL |
 | Google reachable | `remoteprovisioning.googleapis.com` |
 
+### Restricted networks
+
+If `remoteprovisioning.googleapis.com` is unreachable, the tool can route
+through a reverse proxy:
+
+```bash
+./issue.sh --proxy micloud
+# or
+RKP_SERVER=https://deviceapi.micloud.xiaomi.net/proxyGoogle ./issue.sh
+```
+
+`micloud` maps to `https://deviceapi.micloud.xiaomi.net/proxyGoogle`, a
+transparent route to `remoteprovisioning.googleapis.com` used by Xiaomi
+devices. Both `fetchEekChain` and `signCertificates` were verified to return
+byte-identical responses to a direct connection.
+
+> ⚠️ It is an **unofficial** route: it may break without notice, and a third
+> party can observe traffic metadata (device fingerprint, certificate chain).
+> Your private key never leaves the device, so the keybox cannot be
+> reconstructed from the traffic alone. Prefer a direct connection when
+> available.
+
 ---
 
 ## Quick Start
 
 Do this on the device (Termux + root).
+
+### One-line install (recommended)
+
+```bash
+bash <(curl -L https://raw.githubusercontent.com/kanseijo/rkp-toolkit/main/install.sh)
+```
+
+If GitHub is slow in your network, use the proxied copy of the installer:
+
+```bash
+bash <(curl -L https://gh-proxy.org/https://raw.githubusercontent.com/kanseijo/rkp-toolkit/main/install.sh)
+```
+
+The installer measures GitHub throughput first, switches to `gh-proxy.org`
+automatically when it is too slow, verifies the archive checksum, and unpacks
+over any conflicting files.
+
+Optional environment variables:
+
+| Variable | Meaning |
+|---|---|
+| `RKP_DIR=/path` | install somewhere other than `$HOME` |
+| `RKP_PROXY=1` | force the proxy |
+| `RKP_PROXY=0` | never use the proxy |
+| `RKP_KEEP=1` | keep the downloaded zip |
+
+When it finishes it prints the single command to start, for example:
+
+```bash
+cd ~ && cd rkp-toolkit && sh issue.sh
+```
+
+### Manual download
 
 ### 1. Download
 

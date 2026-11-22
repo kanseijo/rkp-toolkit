@@ -48,6 +48,20 @@ import urllib.request
 # ---------------------------------------------------------------- 常量 / Constants
 
 SERVER = "https://remoteprovisioning.googleapis.com"
+
+# 可选的反向代理 / optional reverse proxies
+#
+# 某些网络无法直连 Google。小米的 deviceapi 提供了一条到
+# remoteprovisioning.googleapis.com 的透明通道：把该前缀拼在路径前面即可。
+# 实测 fetchEekChain 与 signCertificates 都可用，返回与直连完全一致。
+#
+# Some networks cannot reach Google directly. Xiaomi's deviceapi exposes a
+# transparent route to remoteprovisioning.googleapis.com: prefix the path with
+# it. Verified for both fetchEekChain and signCertificates, with byte-identical
+# responses to a direct connection.
+PROXIES = {
+    "micloud": "https://deviceapi.micloud.xiaomi.net/proxyGoogle",
+}
 # A13 的 RKP binder 服务名 / the A13 RKP binder service name
 A13_RKP_SERVICE = "android.security.remoteprovisioning"
 # HAL 层服务名，A13 / A14 都一样 / the HAL-level name, identical on A13 and A14
@@ -1335,7 +1349,30 @@ def main():
     ap.add_argument("--fingerprint", default=DEFAULT_FP)
     ap.add_argument("--no-archive", action="store_true",
                     help="不归档，产物留在原目录 / keep artifacts in place")
+    ap.add_argument("--proxy", choices=sorted(PROXIES), default=None,
+                    help="走反向代理 / use a reverse proxy (e.g. micloud)")
+    ap.add_argument("--server", default=None,
+                    help="覆盖服务器地址 / override the server base URL")
     a = ap.parse_args()
+
+    # 服务器地址优先级：--server > --proxy > 环境变量 RKP_SERVER > 默认
+    # Server precedence: --server > --proxy > RKP_SERVER > default
+    global SERVER
+    _env = os.environ.get("RKP_SERVER", "").strip()
+    if a.server:
+        SERVER = a.server.rstrip("/")
+    elif a.proxy:
+        SERVER = PROXIES[a.proxy]
+    elif _env:
+        SERVER = _env.rstrip("/")
+
+    if SERVER != "https://remoteprovisioning.googleapis.com":
+        say(f"服务器 / server: {SERVER}")
+        if a.proxy == "micloud":
+            say("    经小米 deviceapi 反向代理 / via Xiaomi deviceapi reverse proxy")
+            say("    注意：非官方通道，可能随时失效，且第三方可见流量元数据")
+            say("    note: unofficial route, may break at any time, and a third")
+            say("          party can observe traffic metadata")
 
     out = a.out or os.path.join(a.workdir, "keybox.xml")
 

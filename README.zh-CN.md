@@ -85,11 +85,61 @@ echo $TERMUX_VERSION
 | 已 root | 调用 RKP HAL 需要 root |
 | 能访问 Google | `remoteprovisioning.googleapis.com` |
 
+### 网络受限时
+
+如果 `remoteprovisioning.googleapis.com` 连不上，可以让工具走反向代理：
+
+```bash
+./issue.sh --proxy micloud
+# 或者
+RKP_SERVER=https://deviceapi.micloud.xiaomi.net/proxyGoogle ./issue.sh
+```
+
+`micloud` 指向 `https://deviceapi.micloud.xiaomi.net/proxyGoogle`，这是小米设备
+用来访问 `remoteprovisioning.googleapis.com` 的透明通道。实测
+`fetchEekChain` 与 `signCertificates` 的返回与直连**完全一致**。
+
+> ⚠️ 这是**非官方**通道：可能随时失效，且第三方能看到流量元数据
+> （设备指纹、证书链）。私钥不会离开设备，所以无法仅凭流量重建 keybox。
+> 能直连时请优先直连。
+
 ---
 
 ## 快速开始
 
 在设备上操作（Termux + root）。
+
+### 一行安装（推荐）
+
+```bash
+bash <(curl -L https://raw.githubusercontent.com/kanseijo/rkp-toolkit/main/install.sh)
+```
+
+国内网络访问 GitHub 慢时，用带加速的脚本：
+
+```bash
+bash <(curl -L https://gh-proxy.org/https://raw.githubusercontent.com/kanseijo/rkp-toolkit/main/install.sh)
+```
+
+安装脚本会先测速，太慢就自动切到 `gh-proxy.org`，下载后校验 SHA256，
+解压时覆盖同名冲突文件。
+
+可选环境变量：
+
+| 变量 | 含义 |
+|---|---|
+| `RKP_DIR=/path` | 装到指定目录，默认 `$HOME` |
+| `RKP_PROXY=1` | 强制走加速 |
+| `RKP_PROXY=0` | 禁用加速 |
+| `RKP_KEEP=1` | 保留下载的 zip |
+
+跑完会打印一行启动命令，例如：
+
+```bash
+cd ~ && cd rkp-toolkit && sh issue.sh
+```
+
+### 手动下载
 
 ### 1. 下载
 

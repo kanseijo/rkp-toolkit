@@ -76,6 +76,9 @@ echo "  python : $PYB"
 echo "  su     : ${SU:-<已是 root / already root>}"
 echo "  临时目录 / work : $OUT"
 echo "  归档 / archive  : $OUT/$(date +%Y-%m-%d)_NNNN"
+if [ -n "${RKP_SERVER:-}" ]; then
+    echo "  服务器 / server : $RKP_SERVER"
+fi
 echo
 
 # ---- Termux 版本检查 / Termux version check ----
@@ -100,7 +103,7 @@ fi
 # 普通用户能做的事先做（网络、CBOR、打包）
 # Do the non-root work first (network, CBOR, packaging)
 env PYTHONHOME=$TP PYTHONPATH=$TP/lib/$PYVER \
-    "$PYB" "$DIR/rkp_toolkit.py" all --workdir "$OUT" -o "$OUT/keybox.xml"
+    "$PYB" "$DIR/rkp_toolkit.py" all --workdir "$OUT" -o "$OUT/keybox.xml" "$@"
 
 # 归档信息由 rkp_toolkit.py 打印（成功和失败都会打印），这里不再重复。
 # The archive summary is printed by rkp_toolkit.py (on success and failure),
