@@ -89,14 +89,16 @@ echo $TERMUX_VERSION
 
 ### Restricted networks
 
-**If the direct route fails, the tool falls back to a proxy automatically** —
-no flag needed. Only network-level failures trigger the fallback; an HTTP error
-means the server was reachable and is reported as-is.
+**By default the tool probes both routes first and uses the faster one.** The
+probes run concurrently, so a blocked direct route does not stall you: it is
+capped at 5 seconds, and the proxy is picked as soon as it answers. Nothing else
+needs to be configured.
 
 To choose explicitly:
 
 ```bash
-./issue.sh --proxy auto        # 测速后自动选择 / probe, then pick the faster
+./issue.sh --proxy auto        # 先测速再选（默认行为）/ probe first (default)
+./issue.sh --proxy direct      # 只用直连 / direct only
 ./issue.sh --proxy micloud     # 强制走小米代理 / force the Xiaomi proxy
 RKP_SERVER=https://deviceapi.micloud.xiaomi.net/proxyGoogle ./issue.sh
 ```

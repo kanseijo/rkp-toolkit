@@ -87,13 +87,14 @@ echo $TERMUX_VERSION
 
 ### 网络受限时
 
-**直连失败时工具会自动回退到代理**，不用加任何参数。只有网络层失败才回退；
-HTTP 错误说明服务器可达，会原样报出。
+**默认会先并发探测两条通道，然后选更快的那条。** 直连被墙时最多等 5 秒，
+代理一有响应就会切过去，不需要额外配置。
 
 也可以显式指定：
 
 ```bash
-./issue.sh --proxy auto        # 测速后自动选更快的
+./issue.sh --proxy auto        # 先测速再选（默认行为）
+./issue.sh --proxy direct      # 只用直连
 ./issue.sh --proxy micloud     # 强制走小米代理
 RKP_SERVER=https://deviceapi.micloud.xiaomi.net/proxyGoogle ./issue.sh
 ```

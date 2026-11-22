@@ -41,6 +41,7 @@ import shutil
 import struct
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -328,9 +329,13 @@ def api_post(path, data, timeout=60):
         raise first
 
 
-def net_probe(timeout=8):
-    """测量直连与各代理的 fetchEekChain 延迟。
-    Measure fetchEekChain latency for the direct route and each proxy.
+def net_probe(timeout=5):
+    """并发测量直连与各代理的 fetchEekChain 延迟。
+    Probe the direct route and each proxy concurrently.
+
+    并发而非串行：直连被墙时会一直等到超时，串行会让用户白等。
+    Concurrent rather than sequential: a blocked direct route waits for its
+    timeout, and probing in series would make the user wait for nothing.
 
     返回 / returns: [(名称, 基准 URL, 毫秒, 是否成功, 响应字节数), ...]
     """
@@ -338,18 +343,32 @@ def net_probe(timeout=8):
     targets = [("direct", SERVER_DEFAULT)]
     targets += [(name, url) for name, url in sorted(PROXIES.items())]
 
-    results = []
-    for name, base in targets:
+    results = [None] * len(targets)
+
+    def work(idx, base):
         url = f"{base}{RPC_PREFIX}:fetchEekChain"
         t0 = time.monotonic()
         try:
             reply = http_post(url, payload, timeout=timeout)
             ms = int((time.monotonic() - t0) * 1000)
-            results.append((name, base, ms, bool(reply), len(reply)))
+            results[idx] = (ms, bool(reply), len(reply))
         except Exception:
             ms = int((time.monotonic() - t0) * 1000)
-            results.append((name, base, ms, False, 0))
-    return results
+            results[idx] = (ms, False, 0)
+
+    threads = []
+    for i, (_name, base) in enumerate(targets):
+        t = threading.Thread(target=work, args=(i, base), daemon=True)
+        t.start()
+        threads.append(t)
+    for t in threads:
+        t.join(timeout + 5)
+
+    out = []
+    for i, (name, base) in enumerate(targets):
+        r = results[i] if results[i] else (0, False, 0)
+        out.append((name, base, r[0], r[1], r[2]))
+    return out
 
 
 # ---------------------------------------------------------------- CBOR（最小集 / minimal subset）
@@ -1423,8 +1442,9 @@ def main():
     ap.add_argument("--fingerprint", default=DEFAULT_FP)
     ap.add_argument("--no-archive", action="store_true",
                     help="不归档，产物留在原目录 / keep artifacts in place")
-    ap.add_argument("--proxy", choices=sorted(list(PROXIES) + ["auto"]), default=None,
-                    help="auto=测速择优，或指定代理 / auto=pick the faster route")
+    ap.add_argument("--proxy", choices=sorted(list(PROXIES) + ["auto", "direct"]),
+                    default="auto",
+                    help="auto=先测速再选（默认）/ probe first, then pick (default)")
     ap.add_argument("--server", default=None,
                     help="覆盖服务器地址 / override the server base URL")
     a = ap.parse_args()
@@ -1437,7 +1457,8 @@ def main():
         SERVER = a.server.rstrip("/")
         ALLOW_FALLBACK = False        # 用户指定了地址，不要擅自换
 
-    elif a.proxy == "auto":
+    elif (a.proxy == "auto" or a.proxy is None) and a.cmd in ("all", "issue"):
+        # 只有需要联网的命令才测速 / only probe for commands that need the network
         # 测速择优 / pick the faster route
         say("网络探测 / network probe")
         probe = net_probe()
@@ -1458,7 +1479,10 @@ def main():
             say(f"→ 使用直连（更快）/ using direct ({best[2]} ms)", "ok")
         else:
             say(f"→ 使用 {best[0]} 代理（更快）/ using {best[0]} ({best[2]} ms)", "ok")
-    elif a.proxy:
+    elif a.proxy == "direct":
+        SERVER = SERVER_DEFAULT
+        ALLOW_FALLBACK = False        # 明确要求直连 / explicitly direct
+    elif a.proxy and a.proxy in PROXIES:
         SERVER = PROXIES[a.proxy]
         ALLOW_FALLBACK = False        # 显式要求走代理，同样不换
     elif _env:
