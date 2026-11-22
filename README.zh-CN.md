@@ -90,9 +90,19 @@ echo $TERMUX_VERSION
 如果 `remoteprovisioning.googleapis.com` 连不上，可以让工具走反向代理：
 
 ```bash
-./issue.sh --proxy micloud
-# 或者
+./issue.sh --proxy auto        # 测速后自动选更快的
+./issue.sh --proxy micloud     # 强制走小米代理
 RKP_SERVER=https://deviceapi.micloud.xiaomi.net/proxyGoogle ./issue.sh
+```
+
+加 `--proxy auto` 会分别对两条通道发起一次真实的 `fetchEekChain` 请求并计时，
+然后选更快的那条：
+
+```
+[i] 网络探测 / network probe
+[i]     直连 / direct        148 ms  699 bytes
+[i]     代理 / micloud       279 ms  699 bytes
+[OK] → 使用直连（更快）/ using direct (148 ms)
 ```
 
 `micloud` 指向 `https://deviceapi.micloud.xiaomi.net/proxyGoogle`，这是小米设备

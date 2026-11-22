@@ -47,7 +47,8 @@ import urllib.request
 
 # ---------------------------------------------------------------- 常量 / Constants
 
-SERVER = "https://remoteprovisioning.googleapis.com"
+SERVER_DEFAULT = "https://remoteprovisioning.googleapis.com"
+SERVER = SERVER_DEFAULT
 
 # 可选的反向代理 / optional reverse proxies
 #
@@ -287,6 +288,30 @@ def http_post(url, data, timeout=60):
                                  method="POST")
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
+
+
+def net_probe(timeout=8):
+    """测量直连与各代理的 fetchEekChain 延迟。
+    Measure fetchEekChain latency for the direct route and each proxy.
+
+    返回 / returns: [(名称, 基准 URL, 毫秒, 是否成功, 响应字节数), ...]
+    """
+    payload = cbor_dumps({"fingerprint": DEFAULT_FP, "id": 42})
+    targets = [("direct", SERVER_DEFAULT)]
+    targets += [(name, url) for name, url in sorted(PROXIES.items())]
+
+    results = []
+    for name, base in targets:
+        url = f"{base}{RPC_PREFIX}:fetchEekChain"
+        t0 = time.monotonic()
+        try:
+            reply = http_post(url, payload, timeout=timeout)
+            ms = int((time.monotonic() - t0) * 1000)
+            results.append((name, base, ms, bool(reply), len(reply)))
+        except Exception:
+            ms = int((time.monotonic() - t0) * 1000)
+            results.append((name, base, ms, False, 0))
+    return results
 
 
 # ---------------------------------------------------------------- CBOR（最小集 / minimal subset）
@@ -1349,8 +1374,8 @@ def main():
     ap.add_argument("--fingerprint", default=DEFAULT_FP)
     ap.add_argument("--no-archive", action="store_true",
                     help="不归档，产物留在原目录 / keep artifacts in place")
-    ap.add_argument("--proxy", choices=sorted(PROXIES), default=None,
-                    help="走反向代理 / use a reverse proxy (e.g. micloud)")
+    ap.add_argument("--proxy", choices=sorted(list(PROXIES) + ["auto"]), default=None,
+                    help="auto=测速择优，或指定代理 / auto=pick the faster route")
     ap.add_argument("--server", default=None,
                     help="覆盖服务器地址 / override the server base URL")
     a = ap.parse_args()
@@ -1361,12 +1386,32 @@ def main():
     _env = os.environ.get("RKP_SERVER", "").strip()
     if a.server:
         SERVER = a.server.rstrip("/")
+    elif a.proxy == "auto":
+        # 测速择优 / pick the faster route
+        say("网络探测 / network probe")
+        probe = net_probe()
+        for name, _base, ms, ok, nbytes in probe:
+            label = "直连 / direct" if name == "direct" else f"代理 / {name}"
+            if ok:
+                say(f"    {label:16s} {ms:>5} ms  {nbytes} bytes")
+            else:
+                say(f"    {label:16s} {ms:>5} ms  失败 / failed")
+
+        usable = [r for r in probe if r[3]]
+        if not usable:
+            die("直连与代理都不可用 / neither direct nor proxy works")
+        best = min(usable, key=lambda r: r[2])
+        SERVER = best[1]
+        if best[0] == "direct":
+            say(f"→ 使用直连（更快）/ using direct ({best[2]} ms)", "ok")
+        else:
+            say(f"→ 使用 {best[0]} 代理（更快）/ using {best[0]} ({best[2]} ms)", "ok")
     elif a.proxy:
         SERVER = PROXIES[a.proxy]
     elif _env:
         SERVER = _env.rstrip("/")
 
-    if SERVER != "https://remoteprovisioning.googleapis.com":
+    if SERVER != SERVER_DEFAULT:
         say(f"服务器 / server: {SERVER}")
         if a.proxy == "micloud":
             say("    经小米 deviceapi 反向代理 / via Xiaomi deviceapi reverse proxy")

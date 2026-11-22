@@ -93,9 +93,19 @@ If `remoteprovisioning.googleapis.com` is unreachable, the tool can route
 through a reverse proxy:
 
 ```bash
-./issue.sh --proxy micloud
-# or
+./issue.sh --proxy auto        # 测速后自动选择 / probe, then pick the faster
+./issue.sh --proxy micloud     # 强制走小米代理 / force the Xiaomi proxy
 RKP_SERVER=https://deviceapi.micloud.xiaomi.net/proxyGoogle ./issue.sh
+```
+
+With `--proxy auto` the tool times a real `fetchEekChain` call against both
+routes and uses whichever is faster:
+
+```
+[i] 网络探测 / network probe
+[i]     直连 / direct        148 ms  699 bytes
+[i]     代理 / micloud       279 ms  699 bytes
+[OK] → 使用直连（更快）/ using direct (148 ms)
 ```
 
 `micloud` maps to `https://deviceapi.micloud.xiaomi.net/proxyGoogle`, a
