@@ -590,7 +590,10 @@ if [ -n "$_rtt" ]; then
     esac
 else
     warn "无法连接 RKP 服务器 / cannot reach the RKP server"
-    dim "检查网络或代理 / check your network or proxy"
+    dim "检查网络 / check your network"
+    say "如在受限网络，用反向代理 / on a restricted network, use the proxy:"
+    dim "  sh issue.sh --proxy auto      # 测速后自动选 / probe and pick"
+    dim "  sh issue.sh --proxy micloud   # 强制走小米通道 / force the Xiaomi route"
 fi
 
 echo

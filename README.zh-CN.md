@@ -87,7 +87,10 @@ echo $TERMUX_VERSION
 
 ### 网络受限时
 
-如果 `remoteprovisioning.googleapis.com` 连不上，可以让工具走反向代理：
+**直连失败时工具会自动回退到代理**，不用加任何参数。只有网络层失败才回退；
+HTTP 错误说明服务器可达，会原样报出。
+
+也可以显式指定：
 
 ```bash
 ./issue.sh --proxy auto        # 测速后自动选更快的

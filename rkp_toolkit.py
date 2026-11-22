@@ -290,6 +290,44 @@ def http_post(url, data, timeout=60):
         return r.read()
 
 
+# 直连失败时是否自动回退到代理 / fall back to a proxy when direct fails
+ALLOW_FALLBACK = True
+
+
+def api_post(path, data, timeout=60):
+    """POST 到 RKP 端点，直连不通时自动改走代理并记住可用通道。
+    POST to an RKP endpoint; fall back to a proxy when the direct route is
+    unreachable, and remember the working base.
+
+    只有网络层失败才回退。HTTP 错误（400/500）说明服务器可达，原样抛出。
+    Only network-level failures fall back. An HTTP error means the server was
+    reachable, so it is raised as-is.
+    """
+    global SERVER
+
+    try:
+        return http_post(SERVER + path, data, timeout=timeout)
+    except urllib.error.HTTPError:
+        raise
+    except Exception as first:
+        if not ALLOW_FALLBACK:
+            raise
+        for name, base in sorted(PROXIES.items()):
+            if base == SERVER:
+                continue
+            say(f"直连失败，尝试 {name} 代理 / direct failed, trying {name}", "warn")
+            try:
+                reply = http_post(base + path, data, timeout=timeout)
+                SERVER = base
+                say(f"已切换到 / switched to: {name}", "ok")
+                return reply
+            except urllib.error.HTTPError:
+                raise
+            except Exception:
+                continue
+        raise first
+
+
 def net_probe(timeout=8):
     """测量直连与各代理的 fetchEekChain 延迟。
     Measure fetchEekChain latency for the direct route and each proxy.
@@ -665,10 +703,9 @@ def _assemble_v2(payload, challenge):
 
 def stage_issue(workdir, fingerprint):
     say("A. fetchEekChain（取 challenge / get challenge）")
-    url = f"{SERVER}{RPC_PREFIX}:fetchEekChain"
     payload = cbor_dumps({"fingerprint": fingerprint, "id": 42})
     try:
-        reply = http_post(url, payload)
+        reply = api_post(f"{RPC_PREFIX}:fetchEekChain", payload)
     except urllib.error.HTTPError as e:
         die(f"fetchEekChain 失败 / failed HTTP {e.code}: {e.read()[:200]}")
     except Exception as e:
@@ -880,9 +917,9 @@ def stage_issue(workdir, fingerprint):
 
     say("C. signCertificates（Google 签发 / signed by Google）")
     ch_b64 = base64.urlsafe_b64encode(challenge).rstrip(b"=").decode()
-    url = f"{SERVER}{RPC_PREFIX}:signCertificates?challenge={ch_b64}"
+    path = f"{RPC_PREFIX}:signCertificates?challenge={ch_b64}"
     try:
-        reply = http_post(url, csr)
+        reply = api_post(path, csr)
     except urllib.error.HTTPError as e:
         body = e.read()[:400]
         if e.code == 403:
@@ -966,10 +1003,22 @@ def _warn_firmware_mismatch():
     if not sysrel or not venrel or sysrel == venrel:
         return
 
-    say(f"警告：固件版本不一致 / firmware version mismatch "
+    # 只差一个大版本时并不代表有问题：一加等厂商的 vendor 常常滞后一个版本，
+    # 这类设备仍能正常签发 RKP（已实测）。只有差距 >= 2 才告警，避免误报。
+    # A one-version gap is normal: vendors such as OnePlus often lag one release
+    # behind on the vendor partition and still provision fine (verified). Only
+    # warn when the gap is 2 or more, to avoid false positives.
+    try:
+        gap = abs(int(sysrel) - int(venrel))
+    except ValueError:
+        gap = 2  # 非数字版本号，保守处理 / non-numeric, be conservative
+
+    if gap < 2:
+        return
+
+    say(f"警告：固件版本差距较大 / large firmware version gap "
         f"(system {sysrel} vs vendor {venrel})", "warn")
-    print("    系统与厂商固件不一致，RKP 很可能失败 / "
-          "mismatched system and vendor firmware may break RKP")
+    print("    这类设备签发 RKP 可能会失败 / RKP may fail on such devices")
     print("    常见于刷机、跨版本固件、移植 ROM / typically after reflashing, "
           "cross-version firmware or ported ROMs")
     print("    详见 / see: README「重要声明」/ Important Notice")
@@ -1382,10 +1431,12 @@ def main():
 
     # 服务器地址优先级：--server > --proxy > 环境变量 RKP_SERVER > 默认
     # Server precedence: --server > --proxy > RKP_SERVER > default
-    global SERVER
+    global SERVER, ALLOW_FALLBACK
     _env = os.environ.get("RKP_SERVER", "").strip()
     if a.server:
         SERVER = a.server.rstrip("/")
+        ALLOW_FALLBACK = False        # 用户指定了地址，不要擅自换
+
     elif a.proxy == "auto":
         # 测速择优 / pick the faster route
         say("网络探测 / network probe")
@@ -1402,14 +1453,17 @@ def main():
             die("直连与代理都不可用 / neither direct nor proxy works")
         best = min(usable, key=lambda r: r[2])
         SERVER = best[1]
+        ALLOW_FALLBACK = False
         if best[0] == "direct":
             say(f"→ 使用直连（更快）/ using direct ({best[2]} ms)", "ok")
         else:
             say(f"→ 使用 {best[0]} 代理（更快）/ using {best[0]} ({best[2]} ms)", "ok")
     elif a.proxy:
         SERVER = PROXIES[a.proxy]
+        ALLOW_FALLBACK = False        # 显式要求走代理，同样不换
     elif _env:
         SERVER = _env.rstrip("/")
+        ALLOW_FALLBACK = False
 
     if SERVER != SERVER_DEFAULT:
         say(f"服务器 / server: {SERVER}")

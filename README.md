@@ -89,8 +89,11 @@ echo $TERMUX_VERSION
 
 ### Restricted networks
 
-If `remoteprovisioning.googleapis.com` is unreachable, the tool can route
-through a reverse proxy:
+**If the direct route fails, the tool falls back to a proxy automatically** —
+no flag needed. Only network-level failures trigger the fallback; an HTTP error
+means the server was reachable and is reported as-is.
+
+To choose explicitly:
 
 ```bash
 ./issue.sh --proxy auto        # 测速后自动选择 / probe, then pick the faster
